@@ -8,8 +8,8 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const savedUser = localStorage.getItem('user');
+    const token = localStorage.getItem('jwt_token');
+    const savedUser = localStorage.getItem('user_data');
     if (token && savedUser) {
       setUser(JSON.parse(savedUser));
     }
@@ -20,8 +20,8 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await api.post('/auth/login', { email, password });
       const { token, user: userData } = response.data;
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(userData));
+      localStorage.setItem('jwt_token', token);
+      localStorage.setItem('user_data', JSON.stringify(userData));
       setUser(userData);
       return userData;
     } catch (error) {
@@ -33,8 +33,8 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await api.post('/auth/register', { name, email, password });
       const { token, user: userData } = response.data;
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(userData));
+      localStorage.setItem('jwt_token', token);
+      localStorage.setItem('user_data', JSON.stringify(userData));
       setUser(userData);
       return userData;
     } catch (error) {
@@ -43,13 +43,13 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    localStorage.removeItem('jwt_token');
+    localStorage.removeItem('user_data');
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, loading, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );
