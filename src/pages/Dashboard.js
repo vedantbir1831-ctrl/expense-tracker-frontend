@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
-import { fmt, CATEGORIES, getCategoryMeta, generateInsights, localDB } from "../utils/helpers";
+import { fmt, CATEGORIES, INCOME_SOURCES, getCategoryMeta, generateInsights, localDB } from "../utils/helpers";
 import { format, subMonths } from "date-fns";
 
 const COLORS = ["var(--cat-food)", "var(--cat-travel)", "var(--cat-books)", "var(--cat-fun)", "var(--cat-misc)"];
@@ -72,6 +73,13 @@ export default function Dashboard() {
   });
 
   const recent = [...expenses].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
+
+  const allTransactions = [
+    ...expenses.map((e) => ({ ...e, type: "expense" })),
+    ...income.map((i) => ({ ...i, type: "income" })),
+  ].sort((a, b) => new Date(b.date) - new Date(a.date) || b.id - a.id).slice(0, 8);
+
+  const balance = totalInc - totalExp;
   const budgetPct = budget > 0 ? Math.min((totalExp / budget) * 100, 100) : 0;
   const budgetColor = budgetPct >= 90 ? "var(--danger)" : budgetPct >= 70 ? "var(--warning)" : "var(--success)";
 
@@ -111,6 +119,35 @@ export default function Dashboard() {
         <div>
           <h1 className="text-h1">{greeting}, {user?.name?.split(" ")[0] || "Student"}</h1>
           <p className="text-sm">{format(new Date(), "EEEE, MMMM d, yyyy")}</p>
+        </div>
+      </div>
+
+      {/* Balance hero card */}
+      <div className="card" style={{
+        marginBottom: "var(--sp-5)",
+        background: "linear-gradient(135deg, var(--surface-2), var(--surface-3))",
+        border: "1px solid var(--border-strong)",
+      }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16 }}>
+          <div>
+            <span className="eyebrow">Your balance</span>
+            <div className="text-mono" style={{ fontSize: 36, fontWeight: 700, color: balance >= 0 ? "var(--text)" : "var(--danger)", marginTop: 6 }}>
+              {fmt(balance)}
+            </div>
+            <div className="text-sm" style={{ marginTop: 4 }}>
+              {fmt(totalInc)} in &middot; {fmt(totalExp)} out
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 10 }}>
+            <Link to="/income" className="btn btn-primary" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+              Add money
+            </Link>
+            <Link to="/expenses" className="btn btn-ghost" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/></svg>
+              Add expense
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -193,25 +230,32 @@ export default function Dashboard() {
       {/* Bottom row */}
       <div className="grid grid-2">
         <div className="card">
-          <h3 className="text-h3" style={{ marginBottom: "var(--sp-4)" }}>Recent transactions</h3>
-          {recent.length > 0 ? (
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--sp-4)" }}>
+            <h3 className="text-h3">Transaction history</h3>
+            <Link to="/expenses" className="text-xs" style={{ color: "var(--primary)" }}>View all</Link>
+          </div>
+          {allTransactions.length > 0 ? (
             <div className="stagger" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {recent.map((e) => {
-                const meta = getCategoryMeta(e.category);
+              {allTransactions.map((t) => {
+                const isIncome = t.type === "income";
+                const meta = isIncome
+                  ? { icon: "💰", label: INCOME_SOURCES.find((s) => s.id === t.source)?.label || "Income" }
+                  : getCategoryMeta(t.category);
+                const desc = isIncome ? (t.note || meta.label) : t.description;
                 return (
-                  <div key={e.id} className="card-flat" style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div key={`${t.type}-${t.id}`} className="card-flat" style={{ display: "flex", alignItems: "center", gap: 12 }}>
                     <div style={{
                       width: 36, height: 36, borderRadius: "var(--r-md)",
-                      background: "var(--surface-3)",
+                      background: isIncome ? "var(--success-dim)" : "var(--surface-3)",
                       display: "flex", alignItems: "center", justifyContent: "center",
                       fontSize: 16, flexShrink: 0,
                     }}>{meta.icon}</div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: "var(--fs-sm)", fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.description}</div>
-                      <div className="text-xs">{meta.label} &middot; {e.date}</div>
+                      <div style={{ fontSize: "var(--fs-sm)", fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{desc}</div>
+                      <div className="text-xs">{meta.label} &middot; {t.date}</div>
                     </div>
-                    <div className="text-mono" style={{ fontSize: "var(--fs-sm)", fontWeight: 600, color: "var(--danger)", flexShrink: 0 }}>
-                      -{fmt(e.amount)}
+                    <div className="text-mono" style={{ fontSize: "var(--fs-sm)", fontWeight: 600, color: isIncome ? "var(--success)" : "var(--danger)", flexShrink: 0 }}>
+                      {isIncome ? "+" : "-"}{fmt(t.amount)}
                     </div>
                   </div>
                 );
@@ -221,7 +265,7 @@ export default function Dashboard() {
             <div className="empty-state">
               <div className="icon">💳</div>
               <div className="title">No transactions yet</div>
-              <div className="desc">Your recent expenses will show up here.</div>
+              <div className="desc">Add money or an expense to see your history here.</div>
             </div>
           )}
         </div>
