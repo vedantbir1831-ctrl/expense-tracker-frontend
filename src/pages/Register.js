@@ -1,33 +1,32 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { userAccounts } from "../utils/helpers";
+import { useAuth } from "../context/AuthContext";
 import AuthShell from "../components/AuthShell";
 
 export default function Register() {
   const [form, setForm] = useState({ name: "", email: "", password: "", confirm: "" });
   const [loading, setLoading] = useState(false);
+  const { register } = useAuth();
+  const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (form.password !== form.confirm) { toast.error("Passwords don't match"); return; }
     if (form.password.length < 6) { toast.error("Password must be at least 6 characters"); return; }
 
     setLoading(true);
 
-    if (userAccounts.find(form.email)) {
+    try {
+      const user = await register(form.name, form.email, form.password);
+      toast.success(`Welcome to SpendSmart, ${user.name.split(" ")[0]}`);
+      navigate("/dashboard");
+    } catch (error) {
+      const message = typeof error === "string" ? error : "Could not create account";
+      toast.error(message);
+    } finally {
       setLoading(false);
-      toast.error("An account with this email already exists");
-      return;
     }
-
-    userAccounts.save({ name: form.name, email: form.email, password: form.password });
-    localStorage.setItem("jwt_token", "demo-token-" + Date.now());
-    localStorage.setItem("user_data", JSON.stringify({ name: form.name, email: form.email }));
-
-    toast.success(`Welcome to SpendSmart, ${form.name.split(" ")[0]}`);
-    setLoading(false);
-    setTimeout(() => { window.location.href = "/dashboard"; }, 250);
   };
 
   return (

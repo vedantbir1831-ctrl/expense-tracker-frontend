@@ -1,36 +1,29 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { userAccounts } from "../utils/helpers";
+import { useAuth } from "../context/AuthContext";
 import AuthShell from "../components/AuthShell";
 
 export default function Login() {
   const [form, setForm] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
+  const { login } = useAuth();
+  const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
-    const existing = userAccounts.find(form.email);
-
-    if (!existing) {
+    try {
+      const user = await login(form.email, form.password);
+      toast.success(`Welcome back, ${user.name.split(" ")[0]}`);
+      navigate("/dashboard");
+    } catch (error) {
+      const message = typeof error === "string" ? error : "Invalid email or password";
+      toast.error(message);
+    } finally {
       setLoading(false);
-      toast.error("No account found with this email");
-      return;
     }
-    if (existing.password !== form.password) {
-      setLoading(false);
-      toast.error("Incorrect password");
-      return;
-    }
-
-    localStorage.setItem("jwt_token", "demo-token-" + Date.now());
-    localStorage.setItem("user_data", JSON.stringify({ name: existing.name, email: existing.email }));
-
-    toast.success(`Welcome back, ${existing.name.split(" ")[0]}`);
-    setLoading(false);
-    setTimeout(() => { window.location.href = "/dashboard"; }, 250);
   };
 
   return (
